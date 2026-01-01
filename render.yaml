@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: ai-incident-assistant
+    env: node
+    buildCommand: npm install
+    startCommand: node src/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+    healthCheckPath: /
+    autoDeploy: true
+
