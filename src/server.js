@@ -3,20 +3,24 @@ const app = require("./app");
 const connectDB = require("./config/db");
 const monitoringService = require("./services/monitoring.service");
 
-// Connect to database
-connectDB();
-
 const PORT = process.env.PORT || 5000;
 
-// Start server
-const server = app.listen(PORT, () => {
+// Start server first (non-blocking)
+const server = app.listen(PORT, async () => {
     console.log(`🚀 Server running on port ${PORT}`);
     
-    // Start continuous monitoring service
-    // Wait a bit for DB connection to establish
-    setTimeout(() => {
-        monitoringService.start();
-    }, 2000);
+    // Connect to database (non-blocking)
+    const dbConnected = await connectDB();
+    
+    if (dbConnected) {
+        // Start continuous monitoring service only if DB is connected
+        // Wait a bit for DB connection to fully establish
+        setTimeout(() => {
+            monitoringService.start();
+        }, 2000);
+    } else {
+        console.log("⚠️ Monitoring service will not start until database is connected");
+    }
 });
 
 // Graceful shutdown

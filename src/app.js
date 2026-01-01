@@ -24,7 +24,23 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/services", serviceRoutes); // service management
 
 app.get("/", (_, res) => {
-    res.send("AI Incident Assistant API running");
+    res.status(200).json({
+        status: "ok",
+        message: "AI Incident Assistant API running",
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Health check endpoint
+app.get("/health", (_, res) => {
+    const mongoose = require("mongoose");
+    const dbStatus = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
+    
+    res.status(200).json({
+        status: "ok",
+        database: dbStatus,
+        timestamp: new Date().toISOString()
+    });
 });
 
 module.exports = app;
