@@ -1,9 +1,28 @@
 const Incident = require("../models/Incident");
 const Log = require("../models/Log");
 
-// AI tools - READ ONLY (following MCP principles)
-// AI can only read data, not modify it
+/**
+ * AI Tools Module (READ-ONLY Operations)
+ * 
+ * This module provides read-only database access functions for AI agents.
+ * Following MCP (Model Context Protocol) principles, AI agents should only
+ * read data, never modify it. All write operations must go through REST APIs
+ * with explicit engineer approval.
+ * 
+ * All functions in this module:
+ * - Only perform database queries (find, findById, etc.)
+ * - Never perform mutations (save, update, delete, create)
+ * - Return data without side effects
+ */
 module.exports = {
+    /**
+     * Get incident by MongoDB ID (READ-ONLY)
+     * 
+     * @param {object} args - Arguments object
+     * @param {string} args.id - Incident MongoDB ObjectId
+     * @returns {Promise<object>} Incident document
+     * @throws {Error} If incident not found or query fails
+     */
     getIncidentById: async ({ id }) => {
         try {
             const incident = await Incident.findById(id);
@@ -15,6 +34,15 @@ module.exports = {
             throw new Error(`Failed to get incident: ${error.message}`);
         }
     },
+    
+    /**
+     * Get logs associated with an incident (READ-ONLY)
+     * 
+     * @param {object} args - Arguments object
+     * @param {string} args.incidentId - Incident MongoDB ObjectId
+     * @returns {Promise<array>} Array of log documents, sorted by creation date (newest first)
+     * @throws {Error} If query fails
+     */
     getLogsByIncident: async ({ incidentId }) => {
         try {
             const logs = await Log.find({ incidentId }).sort({ createdAt: -1 });
@@ -23,6 +51,8 @@ module.exports = {
             throw new Error(`Failed to get logs: ${error.message}`);
         }
     },
-    // Note: updateIncidentStatus removed - AI should be read-only
-    // Engineers must manually update status through /api/incidents/:id/status
+    
+    // NOTE: updateIncidentStatus intentionally removed
+    // AI agents should NOT modify incident status. Engineers must use:
+    // PATCH /api/incidents/:id/status to update status with proper audit trail
 };

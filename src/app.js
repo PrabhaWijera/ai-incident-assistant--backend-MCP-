@@ -3,9 +3,9 @@ const cors = require("cors");
 
 const incidentRoutes = require("./api/incident.routes");
 const logRoutes = require("./api/log.routes");
-const aiRoutes = require("./api/ai.routes");
 const systemRoutes = require("./api/system.routes");
 const serviceRoutes = require("./api/service.routes");
+const mcpRoutes = require("./api/mcp.routes");
 
 const app = express();
 
@@ -20,8 +20,8 @@ app.use(express.json());
 app.use("/api/system", systemRoutes);   // machine
 app.use("/api/incidents", incidentRoutes); // engineer
 app.use("/api/logs", logRoutes);
-app.use("/api/ai", aiRoutes);
 app.use("/api/services", serviceRoutes); // service management
+app.use("/api/mcp", mcpRoutes); // MCP JSON-RPC tools (read-only)
 
 app.get("/", (_, res) => {
     res.status(200).json({

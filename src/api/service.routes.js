@@ -1,5 +1,6 @@
 const express = require("express");
 const Service = require("../models/Service");
+const axios = require("axios");
 
 const router = express.Router();
 
@@ -156,7 +157,6 @@ router.post("/:id/test", async (req, res) => {
             return res.status(404).json({ error: "Service not found" });
         }
 
-        const axios = require("axios");
         const healthUrl = `${service.url}${service.healthEndpoint}`;
 
         try {

@@ -1,11 +1,23 @@
 /**
  * NVIDIA NIM API Client
  * 
- * This file provides AI analysis using NVIDIA NIM (NVIDIA Inference Microservices) APIs.
- * It replaces the previous HuggingFace integration.
+ * Provides AI-powered incident analysis using NVIDIA NIM (NVIDIA Inference Microservices).
+ * This client handles all communication with NVIDIA's hosted LLM inference APIs.
  * 
- * API Key: Can be set via NVIDIA_NIM_API_KEY environment variable
- * Default: Uses provided API key if env var not set
+ * Architecture:
+ * - Primary Model: Llama 3.1 8B Instruct (best for classification + reasoning)
+ * - Secondary Model: Mistral 7B Instruct (backup for quick classification)
+ * - Fallback: Rule-based pattern matching (always available, no API calls)
+ * 
+ * API Configuration:
+ * - Base URL: https://integrate.api.nvidia.com
+ * - Endpoint: /v1/chat/completions
+ * - API Key: Set via NVIDIA_NIM_API_KEY environment variable
+ * 
+ * Error Handling:
+ * - Automatic fallback to secondary model if primary fails
+ * - Automatic fallback to rule-based analysis if both models fail
+ * - Graceful degradation ensures system always returns results
  */
 const axios = require("axios");
 
@@ -26,10 +38,14 @@ const NIM_HEADERS = {
 let nimApiAvailable = true;
 
 /**
- * Call NVIDIA NIM API for severity analysis
- * @param {string} model - Model to use
- * @param {string} prompt - Prompt text
- * @returns {Promise<string|null>} - Severity or null if failed
+ * Call NVIDIA NIM API for severity classification
+ * 
+ * Makes HTTP POST request to NVIDIA NIM API for severity analysis.
+ * Returns null if API call fails (triggers fallback).
+ * 
+ * @param {string} model - Model identifier (PRIMARY_MODEL or SECONDARY_MODEL)
+ * @param {string} prompt - Formatted prompt text for severity classification
+ * @returns {Promise<string|null>} - "high", "medium", "low", or null if failed
  */
 async function callNIMForSeverity(model, prompt) {
     const modelName = model === PRIMARY_MODEL ? "Llama 3.1" : "Mistral";
@@ -95,9 +111,18 @@ async function callNIMForSeverity(model, prompt) {
 }
 
 /**
- * Analyze incident severity using NVIDIA NIM API
- * Tries primary model first, then secondary, then fallback
- * Returns: "high", "medium", or "low"
+ * Analyze incident severity with automatic fallback chain
+ * 
+ * Strategy:
+ * 1. Try PRIMARY_MODEL (Llama 3.1) - best for classification
+ * 2. Try SECONDARY_MODEL (Mistral) - backup option
+ * 3. Fall back to rule-based pattern matching - always available
+ * 
+ * This ensures the system always returns a severity classification even if
+ * NVIDIA APIs are unavailable.
+ * 
+ * @param {string} text - Incident description and log text
+ * @returns {Promise<string>} - "high", "medium", or "low"
  */
 async function analyzeSeverity(text) {
     console.log("📊 [AI Analysis] Starting severity analysis...");
@@ -147,7 +172,11 @@ Severity:`;
 }
 
 /**
- * Fallback severity analysis using pattern matching
+ * Rule-based severity analysis fallback
+ * 
+ * Used when NVIDIA NIM APIs are unavailable or fail.
+ * Uses keyword pattern matching to classify severity.
+ * This ensures the system always returns results.
  */
 function analyzeSeverityFallback(text) {
     if (!text || typeof text !== "string") {
@@ -181,10 +210,14 @@ function analyzeSeverityFallback(text) {
 }
 
 /**
- * Call NVIDIA NIM API for category analysis
- * @param {string} model - Model to use
- * @param {string} prompt - Prompt text
- * @returns {Promise<string|null>} - Category or null if failed
+ * Call NVIDIA NIM API for category classification
+ * 
+ * Classifies incident into one of: database, network, authentication, deployment, performance
+ * Returns null if API call fails (triggers fallback).
+ * 
+ * @param {string} model - Model identifier (PRIMARY_MODEL or SECONDARY_MODEL)
+ * @param {string} prompt - Formatted prompt text for category classification
+ * @returns {Promise<string|null>} - Category string or null if failed
  */
 async function callNIMForCategory(model, prompt) {
     const modelName = model === PRIMARY_MODEL ? "Llama 3.1" : "Mistral";
@@ -244,9 +277,15 @@ async function callNIMForCategory(model, prompt) {
 }
 
 /**
- * Analyze incident category using NVIDIA NIM API
- * Tries primary model first, then secondary, then fallback
- * Returns: "database", "network", "authentication", "deployment", "performance"
+ * Analyze incident category with automatic fallback chain
+ * 
+ * Strategy:
+ * 1. Try PRIMARY_MODEL (Llama 3.1) - best for classification
+ * 2. Try SECONDARY_MODEL (Mistral) - backup option
+ * 3. Fall back to rule-based pattern matching - always available
+ * 
+ * @param {string} text - Incident description and log text
+ * @returns {Promise<string>} - One of: "database", "network", "authentication", "deployment", "performance"
  */
 async function analyzeCategory(text) {
     console.log("📊 [AI Analysis] Starting category analysis...");
@@ -303,7 +342,10 @@ Category:`;
 }
 
 /**
- * Fallback category analysis using pattern matching
+ * Rule-based category analysis fallback
+ * 
+ * Uses keyword pattern matching to classify incidents into categories.
+ * Called when NVIDIA NIM APIs are unavailable or fail.
  */
 function analyzeCategoryFallback(text) {
     if (!text || typeof text !== "string") {
@@ -390,9 +432,13 @@ function analyzeCategoryFallback(text) {
 
 /**
  * Call NVIDIA NIM API for root cause analysis
- * @param {string} model - Model to use
- * @param {string} prompt - Prompt text
- * @returns {Promise<{rootCause: string, probability: number}|null>} - Root cause or null if failed
+ * 
+ * Makes HTTP POST request to NVIDIA NIM API for root cause identification.
+ * Returns null if API call fails (triggers fallback).
+ * 
+ * @param {string} model - Model identifier (PRIMARY_MODEL or SECONDARY_MODEL)
+ * @param {string} prompt - Formatted prompt text with incident context
+ * @returns {Promise<string|null>} - Root cause text or null if failed
  */
 async function callNIMForRootCause(model, prompt) {
     const modelName = model === PRIMARY_MODEL ? "Llama 3.1" : "Mistral";
@@ -441,9 +487,19 @@ async function callNIMForRootCause(model, prompt) {
 }
 
 /**
- * Analyze root cause using NVIDIA NIM API
- * Tries primary model first, then secondary, then fallback
- * Returns: { rootCause: string, rootCauseProbability: number }
+ * Analyze root cause with automatic fallback chain
+ * 
+ * Strategy:
+ * 1. Try PRIMARY_MODEL (Llama 3.1) - best for reasoning and analysis
+ * 2. Try SECONDARY_MODEL (Mistral) - backup option
+ * 3. Fall back to rule-based pattern matching - always available
+ * 
+ * This is the most complex analysis task, requiring understanding of incident
+ * context and log patterns.
+ * 
+ * @param {object} incident - Incident document from database
+ * @param {array} logs - Array of log documents associated with incident
+ * @returns {Promise<object>} - { rootCause: string, rootCauseProbability: number }
  */
 async function analyzeRootCause(incident, logs) {
     console.log("📊 [AI Analysis] Starting root cause analysis...");
@@ -516,9 +572,16 @@ ROOT_CAUSE:`;
 }
 
 /**
- * Parse AI response to extract root cause
- * @param {string} response - AI model response
- * @returns {{rootCause: string, rootCauseProbability: number}|null}
+ * Parse NVIDIA NIM API response to extract root cause text
+ * 
+ * Handles various response formats from LLM:
+ * - Responses with "ROOT_CAUSE:" prefix (preferred format)
+ * - Free-form text responses (fallback parsing)
+ * 
+ * Estimates confidence probability based on response quality.
+ * 
+ * @param {string} response - Raw AI model response text
+ * @returns {{rootCause: string, rootCauseProbability: number}|null} - Parsed result or null if invalid
  */
 function parseRootCauseResponse(response) {
     try {
@@ -545,7 +608,14 @@ function parseRootCauseResponse(response) {
 }
 
 /**
- * Fallback root cause analysis using pattern matching
+ * Rule-based root cause analysis fallback
+ * 
+ * Uses keyword pattern matching on log messages to identify probable root causes.
+ * Called when NVIDIA NIM APIs are unavailable or fail.
+ * 
+ * @param {object} incident - Incident document
+ * @param {array} logs - Array of log documents
+ * @returns {object} - { rootCause: string, rootCauseProbability: number }
  */
 function analyzeRootCauseFallback(incident, logs) {
     const errorLogs = logs.filter(l => l.level === "error");

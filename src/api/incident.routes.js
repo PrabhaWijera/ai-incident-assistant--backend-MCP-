@@ -25,8 +25,7 @@ router.get("/", async (req, res) => {
         const incidents = await Incident.find(filter)
             .sort({ createdAt: -1 })
             .limit(parseInt(limit))
-            .populate("serviceId", "name url category")
-            .populate("aiAnalysis.relatedIncidentIds", "title status severity");
+            .populate("serviceId", "name url category");
 
         res.json({
             count: incidents.length,
@@ -41,8 +40,7 @@ router.get("/", async (req, res) => {
 // Engineer views single incident with full details
 router.get("/:id", async (req, res) => {
     try {
-        const incident = await Incident.findById(req.params.id)
-            .populate("aiAnalysis.relatedIncidentIds", "title status severity createdAt");
+        const incident = await Incident.findById(req.params.id);
         
         if (!incident) {
             return res.status(404).json({ error: "Incident not found" });
@@ -139,21 +137,19 @@ router.patch("/:id/status", async (req, res) => {
     }
 });
 
-// Approve AI-suggested action
+// Approve AI-suggested action (works with on-demand analysis results)
 router.post("/:id/approve-action", async (req, res) => {
     try {
-        const { actionIndex } = req.body;
+        const { action } = req.body; // Accept action object directly from frontend
         const incident = await Incident.findById(req.params.id);
 
         if (!incident) {
             return res.status(404).json({ error: "Incident not found" });
         }
 
-        if (!incident.aiAnalysis?.suggestedActions || !incident.aiAnalysis.suggestedActions[actionIndex]) {
-            return res.status(400).json({ error: "Invalid action index" });
+        if (!action || !action.action || !action.description) {
+            return res.status(400).json({ error: "Action object with 'action' and 'description' fields is required" });
         }
-
-        const action = incident.aiAnalysis.suggestedActions[actionIndex];
         
         // Add timeline event
         const timelineEvent = {
@@ -203,10 +199,15 @@ router.get("/:id/history", async (req, res) => {
             return res.status(404).json({ error: "Incident not found" });
         }
 
-        // Get related incidents
+        // Get related incidents (same category, open/investigating)
         const relatedIncidents = await Incident.find({
-            _id: { $in: incident.aiAnalysis?.relatedIncidentIds || [] },
-        }).select("title status severity createdAt resolvedAt");
+            category: incident.category,
+            status: { $in: ["open", "investigating"] },
+            _id: { $ne: incident._id },
+        })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select("title status severity createdAt resolvedAt");
 
         // Get similar incidents (same category, resolved)
         const similarIncidents = await Incident.find({

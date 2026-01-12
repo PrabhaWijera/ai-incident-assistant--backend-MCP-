@@ -36,26 +36,6 @@ const incidentSchema = new mongoose.Schema(
             default: "open",
         },
 
-        // Enhanced AI Analysis Fields
-        aiAnalysis: {
-            rootCause: String,
-            rootCauseProbability: Number, // 0-1
-            relatedIncidentIds: [{
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "Incident",
-            }],
-            suggestedActions: [{
-                action: String,
-                description: String,
-                confidence: Number, // 0-1
-                requiresApproval: { type: Boolean, default: true },
-            }],
-            trendAnalysis: {
-                isDegrading: Boolean,
-                degradationRate: Number,
-            },
-        },
-
         // Timeline tracking
         timeline: [{
             timestamp: { type: Date, default: Date.now },
@@ -87,6 +67,5 @@ const incidentSchema = new mongoose.Schema(
 // Index for faster queries
 incidentSchema.index({ status: 1, createdAt: -1 });
 incidentSchema.index({ category: 1, severity: 1 });
-incidentSchema.index({ "aiAnalysis.relatedIncidentIds": 1 });
 
 module.exports = mongoose.model("Incident", incidentSchema);
