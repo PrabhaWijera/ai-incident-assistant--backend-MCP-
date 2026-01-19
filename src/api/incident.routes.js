@@ -79,7 +79,7 @@ router.patch("/:id/status", async (req, res) => {
         }
 
         if (!validStatuses.includes(status)) {
-            return res.status(400).json({ error: "Invalid status. Must be: open, investigating, or resolved" });
+            return res.status(400).json({ error: "Invalid status. Must be: open, investigating, or resolved. Auto-resolution is disabled - only engineers can resolve incidents." });
         }
 
         const incident = await Incident.findById(req.params.id);

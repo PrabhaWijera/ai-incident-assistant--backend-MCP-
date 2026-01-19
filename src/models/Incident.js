@@ -32,7 +32,7 @@ const incidentSchema = new mongoose.Schema(
 
         status: {
             type: String,
-            enum: ["open", "investigating", "resolved", "auto-resolved"],
+            enum: ["open", "investigating", "resolved"],
             default: "open",
         },
 
@@ -50,7 +50,7 @@ const incidentSchema = new mongoose.Schema(
         resolutionTime: Number, // in milliseconds
         resolvedBy: {
             type: String,
-            enum: ["system", "engineer", "ai-auto"],
+            enum: ["system", "engineer"],
         },
 
         // Metadata

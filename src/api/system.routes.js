@@ -10,7 +10,7 @@ router.get("/stats", async (req, res) => {
     try {
         const totalIncidents = await Incident.countDocuments();
         const openIncidents = await Incident.countDocuments({ status: { $in: ["open", "investigating"] } });
-        const resolvedIncidents = await Incident.countDocuments({ status: "resolved" });
+        const resolvedIncidents = await Incident.countDocuments({ status: "resolved", resolvedBy: "engineer" });
         const totalLogs = await Log.countDocuments();
 
         res.json({

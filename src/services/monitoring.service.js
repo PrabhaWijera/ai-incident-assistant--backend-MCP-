@@ -23,7 +23,7 @@ class MonitoringService {
         this.isRunning = false;
         this.intervalId = null;
         this.checkInterval = 60000; // Check every 60 seconds (1 minute)
-        this.healthCheckInterval = 60000; // Full health check every 1 minute
+        this.healthCheckInterval = 300000; // Full health check every 5 minutes (300 seconds)
     }
 
     /**
@@ -84,30 +84,16 @@ class MonitoringService {
     async monitorExternalServices() {
         try {
             // Fetch all enabled services from database
-            const allServices = await Service.find({ enabled: true });
+            const services = await Service.find({ enabled: true });
 
-            // Filter out services that are on old/unavailable ports
-            const activeServices = allServices.filter(service => {
-                // Check if service URL contains known old ports
-                const isOldPort = service.url.includes(':3001') || 
-                                  service.url.includes(':3002') ||
-                                  service.url.includes('localhost:3001') ||
-                                  service.url.includes('127.0.0.1:3001');
-                if (isOldPort) {
-                    console.log(`⚠️ Skipping service ${service.name} on old port: ${service.url}`);
-                    return false;
-                }
-                return true;
-            });
-
-            if (activeServices.length === 0) {
-                console.log("📋 No active services available for monitoring");
+            if (services.length === 0) {
+                console.log("📋 No services registered for monitoring");
                 return;
             }
 
-            console.log(`🔍 Monitoring ${activeServices.length}/${allServices.length} active service(s)...`);
+            console.log(`🔍 Monitoring ${services.length} service(s)...`);
 
-            for (const service of activeServices) {
+            for (const service of services) {
                 // Check multiple endpoints for comprehensive monitoring
                 const endpointsToCheck = [
                     { path: "/health", name: "overall health" },
@@ -171,6 +157,9 @@ class MonitoringService {
                 // If any endpoint failed, create/update incident
                 if (hasAnyFailure) {
                     await this.handleServiceEndpointFailures(service, endpointResults);
+                } else {
+                    // All endpoints are healthy - just log this but don't auto-resolve incidents
+                    await this.handleServiceHealthy(service);
                 }
             }
         } catch (error) {
@@ -305,6 +294,49 @@ class MonitoringService {
         if (failedEndpoints.some(e => e.endpoint === "/api")) return "performance";
         
         return "performance";
+    }
+
+    /**
+     * Handle service recovery - only log that service is healthy, no auto-resolution
+     */
+    async handleServiceRecovery(service) {
+        // This function is deprecated - keeping for reference only
+        // Auto-resolution is disabled to ensure only engineers can resolve incidents
+    }
+    
+    /**
+     * Handle when service is healthy - log the status but don't auto-resolve incidents
+     */
+    async handleServiceHealthy(service) {
+        try {
+            // Find open incidents for this service
+            const openIncidents = await Incident.find({
+                serviceId: service._id,
+                status: { $in: ["open", "investigating"] }
+            });
+
+            if (openIncidents.length === 0) {
+                return; // No incidents to report
+            }
+            
+            // Log that service is healthy but don't auto-resolve incidents
+            for (const incident of openIncidents) {
+                await Log.create({
+                    incidentId: incident._id,
+                    message: `Service is now healthy but incident remains open for engineer review`,
+                    level: "info"
+                });
+                
+                // Update last updated timestamp but keep status unchanged
+                await Incident.findByIdAndUpdate(incident._id, {
+                    "metadata.lastUpdatedAt": new Date()
+                });
+
+                console.log(`ℹ️ Service ${service.name} is healthy but incident ${incident._id} remains open for engineer review`);
+            }
+        } catch (error) {
+            console.error("❌ Error handling healthy service:", error);
+        }
     }
 
     /**
@@ -479,11 +511,10 @@ class MonitoringService {
             // Close all old incidents
             for (const incident of oldIncidents) {
                 await Incident.findByIdAndUpdate(incident._id, {
-                    status: "closed",
                     "timeline": [...incident.timeline, {
                         timestamp: new Date(),
-                        event: "incident_closed",
-                        status: "closed",
+                        event: "incident_cleanup",
+                        status: incident.status,
                         actor: "system",
                         details: {
                             reason: "Cleanup: Replacing old incident with fresh monitoring"

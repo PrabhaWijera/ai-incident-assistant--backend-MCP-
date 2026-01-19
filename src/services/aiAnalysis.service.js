@@ -146,6 +146,7 @@ async function findRelatedIncidents(incident, logs) {
         category: incident.category,
         severity: incident.severity,
         status: "resolved",
+        resolvedBy: "engineer", // Only include manually resolved incidents
         _id: { $ne: incident._id },
         resolvedAt: {
             $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
