@@ -26,7 +26,7 @@ This backend system provides:
 - **AI-Powered Analysis** - Uses NVIDIA NIM LLMs for root cause analysis
 - **Multi-Service Monitoring** - Supports unlimited service registration
 - **RESTful API** - Complete API for frontend integration
-- **Real-time Monitoring** - Continuous health checks every 5 minutes
+- **Real-time Monitoring** - Continuous health checks every 1 minute
 - **Intelligent Fallbacks** - Rule-based analysis when AI unavailable
 
 **Purpose**: Centralized backend for enterprise-scale incident management with AI capabilities.
@@ -436,7 +436,7 @@ Monitoring service starts automatically when server starts.
 
 ### Configuration
 
-- **Check Interval**: 5 minutes (300000ms)
+- **Check Interval**: 1 minute (60000ms)
 - **Timeout**: 5 seconds per health check
 - **Auto-resolve**: After 30 minutes of no errors
 

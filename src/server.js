@@ -5,39 +5,51 @@ const monitoringService = require("./services/monitoring.service");
 
 const PORT = process.env.PORT || 5000;
 
-// Start server first (non-blocking)
-const server = app.listen(PORT, async () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    
-    // Connect to database (non-blocking)
-    const dbConnected = await connectDB();
-    
-    if (dbConnected) {
-        // Start continuous monitoring service only if DB is connected
-        // Wait a bit for DB connection to fully establish
-        setTimeout(() => {
+async function startServer() {
+    try {
+        // Connect to database first, before starting server
+        console.log("🔌 Connecting to database...");
+        const dbConnected = await connectDB();
+        
+        if (!dbConnected) {
+            console.error("❌ Failed to connect to database. Server cannot start.");
+            process.exit(1);
+        }
+        
+        console.log("✅ MongoDB connected");
+        
+        // Start the HTTP server only after DB connection is established
+        const server = app.listen(PORT, () => {
+            console.log(`🚀 Server running on port ${PORT}`);
+            
+            // Start monitoring service after both DB and server are ready
+            console.log("🔄 Starting continuous monitoring service...");
             monitoringService.start();
-        }, 2000);
-    } else {
-        console.log("⚠️ Monitoring service will not start until database is connected");
+        });
+        
+        // Graceful shutdown
+        process.on("SIGTERM", () => {
+            console.log("SIGTERM signal received: closing HTTP server");
+            monitoringService.stop();
+            server.close(() => {
+                console.log("HTTP server closed");
+                process.exit(0);
+            });
+        });
+        
+        process.on("SIGINT", () => {
+            console.log("SIGINT signal received: closing HTTP server");
+            monitoringService.stop();
+            server.close(() => {
+                console.log("HTTP server closed");
+                process.exit(0);
+            });
+        });
+        
+    } catch (error) {
+        console.error("❌ Error starting server:", error);
+        process.exit(1);
     }
-});
+}
 
-// Graceful shutdown
-process.on("SIGTERM", () => {
-    console.log("SIGTERM signal received: closing HTTP server");
-    monitoringService.stop();
-    server.close(() => {
-        console.log("HTTP server closed");
-        process.exit(0);
-    });
-});
-
-process.on("SIGINT", () => {
-    console.log("SIGINT signal received: closing HTTP server");
-    monitoringService.stop();
-    server.close(() => {
-        console.log("HTTP server closed");
-        process.exit(0);
-    });
-});
+startServer();

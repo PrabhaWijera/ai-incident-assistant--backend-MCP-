@@ -1,8 +1,19 @@
 const express = require("express");
 const Service = require("../models/Service");
 const axios = require("axios");
+const dns = require("dns");
 
 const router = express.Router();
+
+// Configure DNS to prefer IPv4
+dns.setDefaultResultOrder("ipv4first");
+
+// Helper function to normalize localhost URLs to use 127.0.0.1
+function normalizeLocalhostUrl(url) {
+    if (!url) return url;
+    // Replace localhost with 127.0.0.1 to avoid IPv6 resolution issues
+    return url.replace(/localhost/g, "127.0.0.1").replace(/::1/g, "127.0.0.1");
+}
 
 /**
  * Get all registered services
@@ -63,9 +74,12 @@ router.post("/", async (req, res) => {
             return res.status(400).json({ error: "Service with this URL already exists" });
         }
 
+        // Normalize localhost URLs to use 127.0.0.1 to avoid IPv6 issues
+        const normalizedUrl = normalizeLocalhostUrl(url.trim());
+
         const service = await Service.create({
             name,
-            url: url.trim(),
+            url: normalizedUrl,
             healthEndpoint: healthEndpoint || "/health",
             description,
             category: category || "api",
@@ -95,7 +109,7 @@ router.patch("/:id", async (req, res) => {
 
         const updateData = {};
         if (name) updateData.name = name;
-        if (url) updateData.url = url.trim();
+        if (url) updateData.url = normalizeLocalhostUrl(url.trim());
         if (healthEndpoint) updateData.healthEndpoint = healthEndpoint;
         if (description !== undefined) updateData.description = description;
         if (category) updateData.category = category;
@@ -147,7 +161,7 @@ router.delete("/:id", async (req, res) => {
 });
 
 /**
- * Test service health check
+ * Test service health check - checks multiple endpoints
  */
 router.post("/:id/test", async (req, res) => {
     try {
@@ -157,33 +171,70 @@ router.post("/:id/test", async (req, res) => {
             return res.status(404).json({ error: "Service not found" });
         }
 
-        const healthUrl = `${service.url}${service.healthEndpoint}`;
+        // Check multiple endpoints for comprehensive testing
+        const endpointsToCheck = [
+            { path: "/health", name: "overall health" },
+            { path: "/api", name: "API subsystem" },
+            { path: "/db", name: "database subsystem" },
+            { path: "/auth", name: "auth subsystem" }
+        ];
 
-        try {
+        // Normalize URL to use 127.0.0.1 instead of localhost
+        const baseUrl = normalizeLocalhostUrl(service.url.replace(/\/$/, "")); // Remove trailing slash
+        const results = [];
+        let allHealthy = true;
+
+        for (const endpoint of endpointsToCheck) {
+            const healthUrl = `${baseUrl}${endpoint.path}`;
             const startTime = Date.now();
-            const response = await axios.get(healthUrl, {
-                timeout: 5000,
-                validateStatus: () => true,
-            });
-            const responseTime = Date.now() - startTime;
 
-            res.json({
-                service: service.name,
-                url: healthUrl,
-                status: response.status,
-                responseTime,
-                healthy: response.status === 200 && response.data?.status === "healthy",
-                data: response.data,
-            });
-        } catch (error) {
-            res.json({
-                service: service.name,
-                url: healthUrl,
-                status: "error",
-                error: error.message,
-                healthy: false,
-            });
+            try {
+                const response = await axios.get(healthUrl, {
+                    timeout: 5000,
+                    validateStatus: () => true,
+                });
+                const responseTime = Date.now() - startTime;
+
+                const isHealthy = response.status === 200 && 
+                                 (response.data?.status === "healthy" || response.data?.status === "degraded");
+
+                if (!isHealthy) {
+                    allHealthy = false;
+                }
+
+                results.push({
+                    endpoint: endpoint.path,
+                    name: endpoint.name,
+                    url: healthUrl,
+                    status: response.status,
+                    responseTime,
+                    healthy: isHealthy,
+                    data: response.data,
+                });
+            } catch (error) {
+                allHealthy = false;
+                results.push({
+                    endpoint: endpoint.path,
+                    name: endpoint.name,
+                    url: healthUrl,
+                    status: "error",
+                    error: error.message,
+                    healthy: false,
+                });
+            }
         }
+
+        res.json({
+            service: service.name,
+            baseUrl: baseUrl,
+            allHealthy: allHealthy,
+            endpoints: results,
+            summary: {
+                total: results.length,
+                healthy: results.filter(r => r.healthy).length,
+                unhealthy: results.filter(r => !r.healthy).length
+            }
+        });
     } catch (error) {
         console.error("Error testing service:", error);
         res.status(500).json({ error: "Failed to test service" });
