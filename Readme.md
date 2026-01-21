@@ -1,459 +1,253 @@
-# 🤖 AI-Powered Incident Management System - Backend
+# AI Incident Assistant - Backend API Server
 
-A comprehensive backend system for automatic incident detection, AI-powered analysis, and multi-service monitoring.
+The backend component of the AI-Powered Incident Management System. This Express.js server handles incident management, service registration, continuous monitoring, and AI-powered analysis of system incidents.
 
----
+## What the System Backend Does
 
-## 📋 Table of Contents
+The backend serves as the central hub for incident management operations:
 
-- [Overview](#overview)
-- [Technologies Used](#technologies-used)
-- [Architecture](#architecture)
-- [How It Works](#how-it-works)
-- [API Endpoints](#api-endpoints)
-- [AI Integration](#ai-integration)
-- [Database Models](#database-models)
-- [Quick Start](#quick-start)
-- [Configuration](#configuration)
+- **Incident Management**: Creates, tracks, and manages system incidents across all monitored services
+- **Service Registration**: Maintains a registry of services to monitor with configurable health endpoints
+- **Continuous Monitoring**: Automatically polls registered services every 5 minutes to detect failures
+- **AI Analysis Integration**: Leverages NVIDIA NIM AI models to analyze incidents and provide recommendations
+- **Data Persistence**: Stores incident data, logs, and service information in MongoDB
+- **API Gateway**: Provides REST API and MCP JSON-RPC endpoints for frontend and external integrations
+- **Event Processing**: Processes health check responses and converts them into actionable incidents
+- **Notification System**: Tracks and logs all system events and failure detections
 
----
+## Technologies Used
 
-## 🎯 Overview
+### Core Technologies
+- **Node.js** - JavaScript runtime environment
+- **Express.js** - Web application framework for building REST APIs
+- **MongoDB** - NoSQL database for storing incidents, logs, and services
+- **Mongoose** - ODM (Object Document Mapper) for MongoDB interactions
+- **Axios** - HTTP client for making requests to monitored services
+- **JSON Web Tokens (JWT)** - For secure authentication
 
-This backend system provides:
-
-- **Automatic Incident Detection** - Monitors services and creates incidents
-- **AI-Powered Analysis** - Uses NVIDIA NIM LLMs for root cause analysis
-- **Multi-Service Monitoring** - Supports unlimited service registration
-- **RESTful API** - Complete API for frontend integration
-- **Real-time Monitoring** - Continuous health checks every 1 minute
-- **Intelligent Fallbacks** - Rule-based analysis when AI unavailable
-
-**Purpose**: Centralized backend for enterprise-scale incident management with AI capabilities.
-
----
-
-## 🛠️ Technologies Used
-
-### Core Framework
-- **Node.js** - JavaScript runtime
-- **Express.js 5.2.1** - Web application framework
-- **MongoDB** - NoSQL database
-- **Mongoose 9.0.2** - MongoDB object modeling
-
-### AI/ML Integration
-- **NVIDIA NIM API** - Large Language Model inference
-  - Primary: `meta/llama-3.1-8b-instruct`
-  - Secondary: `mistralai/mistral-7b-instruct`
-- **Axios 1.13.2** - HTTP client for API calls
-
-### Security & Middleware
-- **CORS 2.8.5** - Cross-Origin Resource Sharing
-- **dotenv 17.2.3** - Environment variable management
-- **jsonwebtoken 9.0.3** - JWT authentication (for future use)
+### AI Integration Technologies
+- **NVIDIA NIM (NVIDIA Inference Microservices)** - AI model hosting and inference
+- **Llama 3.1 8B Instruct** - Primary AI model for incident analysis
+- **Mistral 7B Instruct** - Secondary AI model for backup analysis
+- **Model Context Protocol (MCP)** - JSON-RPC interface for AI tools
 
 ### Development Tools
-- **Nodemon 3.1.11** - Development auto-reload
+- **Nodemon** - Development utility for auto-restarting the server
+- **Dotenv** - Environment variable management
+- **Cors** - Cross-Origin Resource Sharing middleware
 
----
+## How the Process Works
 
-## 🏗️ Architecture
-
+### 1. Service Registration Process
 ```
-┌─────────────────────────────────────────┐
-│         Express Application             │
-│                                         │
-│  ┌──────────────────────────────────┐  │
-│  │      Middleware Stack            │  │
-│  │  CORS → JSON → Security          │  │
-│  └──────────────────────────────────┘  │
-│                  │                      │
-│  ┌───────────────▼───────────────┐    │
-│  │      API Routes                 │    │
-│  │                                │    │
-│  │  /api/incidents                │    │
-│  │  /api/services                 │    │
-│  │  /api/ai                       │    │
-│  │  /api/logs                     │    │
-│  │  /api/system                   │    │
-│  └───────────────┬───────────────┘    │
-│                  │                      │
-│  ┌───────────────▼───────────────┐    │
-│  │      Controllers               │    │
-│  │                                │    │
-│  │  incident.routes.js          │    │
-│  │  service.routes.js            │    │
-│  │  ai.controller.js             │    │
-│  │  system.routes.js             │    │
-│  └───────────────┬───────────────┘    │
-│                  │                      │
-│  ┌───────────────▼───────────────┐    │
-│  │      Services Layer            │    │
-│  │                                │    │
-│  │  monitoring.service.js        │    │
-│  │  huggingface.client.js        │    │
-│  │    (NVIDIA NIM integration)   │    │
-│  └───────────────┬───────────────┘    │
-│                  │                      │
-│  ┌───────────────▼───────────────┐    │
-│  │      Database Layer            │    │
-│  │                                │    │
-│  │  MongoDB                       │    │
-│  │  • Incidents Collection        │    │
-│  │  • Logs Collection            │    │
-│  │  • Services Collection         │    │
-│  └───────────────────────────────┘    │
-└─────────────────────────────────────────┘
-```
-
-### Directory Structure
-
-```
-ai-incident-assistant/
-├── src/
-│   ├── server.js              # Entry point
-│   ├── app.js                 # Express app setup
-│   ├── config/
-│   │   └── db.js              # MongoDB connection
-│   ├── models/
-│   │   ├── Incident.js        # Incident model
-│   │   ├── Log.js             # Log model
-│   │   └── Service.js         # Service model
-│   ├── api/
-│   │   ├── incident.routes.js # Incident endpoints
-│   │   ├── service.routes.js   # Service endpoints
-│   │   ├── ai.routes.js       # AI endpoints
-│   │   ├── log.routes.js      # Log endpoints
-│   │   └── system.routes.js   # System endpoints
-│   ├── huggins/
-│   │   ├── ai.controller.js    # AI analysis logic
-│   │   └── huggingface.client.js  # NVIDIA NIM client
-│   ├── services/
-│   │   └── monitoring.service.js  # Monitoring service
-│   └── middleware/
-│       └── toolGuard.js       # Security middleware
-├── package.json
-└── README.md
-```
-
----
-
-## ⚙️ How It Works
-
-### 1. Service Registration
-
-```
-Engineer registers service
-    ↓
+Engineer Request
+      ↓
 POST /api/services
-    ↓
-Service saved to MongoDB
-    ↓
-Monitoring service picks it up
+      ↓
+Validate Service Data
+      ↓
+Save to MongoDB
+      ↓
+Service Registered
+      ↓
+Ready for Monitoring
 ```
 
-### 2. Automatic Monitoring
-
+### 2. Continuous Monitoring Process
 ```
-Monitoring Service (every 5 minutes)
-    ↓
-Fetch all enabled services from DB
-    ↓
-For each service:
-    GET {service.url}/health
-    ↓
-Check response status & data
-    ↓
-If unhealthy/unreachable:
-    Create incident in MongoDB
-    Add log entry
-    Link to service
-```
-
-### 3. AI Analysis Flow
-
-```
-Engineer requests AI analysis
-    ↓
-GET /api/ai/analysis/:incidentId
-    ↓
-Fetch incident & logs
-    ↓
-Call NVIDIA NIM API:
-    1. Try Llama 3.1 (primary)
-    2. Try Mistral 7B (secondary)
-    3. Fallback to rule-based
-    ↓
-Analyze:
-    - Severity
-    - Category
-    - Root Cause
-    ↓
-Generate suggestions
-    ↓
-Update incident with AI analysis
-    ↓
-Return results to frontend
+Monitoring Service Start
+      ↓
+Wait for Check Interval (5 min)
+      ↓
+Fetch All Enabled Services
+      ↓
+For Each Service:
+   ├─ Check /health endpoint
+   ├─ Check /api endpoint  
+   ├─ Check /db endpoint
+   └─ Check /auth endpoint
+      ↓
+Analyze Response Status
+      ↓
+If Healthy → Log Healthy Status
+      ↓
+If Unhealthy → Create/Update Incident
+      ↓
+Continue Monitoring Loop
 ```
 
-### 4. Incident Lifecycle
-
+### 3. Incident Creation Process
 ```
-Service Issue Detected
-    ↓
-Incident Created (status: "open")
-    ↓
-Engineer Views Incident
-    ↓
-Engineer Runs AI Analysis
-    ↓
-AI Provides Root Cause & Suggestions
-    ↓
-Engineer Resolves Issue
-    ↓
-Incident Status: "resolved"
-    ↓
-Timeline Updated
+Health Check Failure Detected
+      ↓
+Determine Severity & Category
+      ↓
+Check for Existing Open Incident
+      ↓
+If No Existing Incident → Create New Incident
+      ↓
+If Existing Incident → Update with New Log
+      ↓
+Store in MongoDB
+      ↓
+Notify Frontend via API
 ```
 
----
-
-## 📡 API Endpoints
-
-### Incidents
-
-- **GET** `/api/incidents` - List incidents (with filters)
-  - Query params: `status`, `severity`, `category`, `serviceId`, `limit`
-- **GET** `/api/incidents/:id` - Get incident details
-- **PATCH** `/api/incidents/:id/status` - Update incident status
-- **POST** `/api/incidents/:id/approve-action` - Approve AI action
-
-### Services
-
-- **GET** `/api/services` - List services (with filters)
-- **GET** `/api/services/:id` - Get service details
-- **POST** `/api/services` - Register new service
-- **PATCH** `/api/services/:id` - Update service
-- **DELETE** `/api/services/:id` - Delete service
-- **POST** `/api/services/:id/test` - Test service health
-
-### AI Analysis
-
-- **GET** `/api/ai/analysis/:incidentId` - Run AI analysis on incident
-
-### Logs
-
-- **GET** `/api/logs/:incidentId` - Get logs for incident
-
-### System
-
-- **GET** `/api/system/stats` - Get system statistics
-- **POST** `/api/system/events` - Simulate system event
-- **POST** `/api/system/monitoring/start` - Start monitoring
-- **POST** `/api/system/monitoring/stop` - Stop monitoring
-- **GET** `/api/system/monitoring/status` - Get monitoring status
-
----
-
-## 🤖 AI Integration
-
-### NVIDIA NIM Models
-
-**Primary Model**: `meta/llama-3.1-8b-instruct`
-- Best for: Classification, reasoning, explanations
-- Fast and reliable
-- Industry-trusted
-
-**Secondary Model**: `mistralai/mistral-7b-instruct`
-- Backup for: Quick classification
-- Fallback when primary fails
-
-### AI Analysis Process
-
-1. **Severity Analysis**
-   - Prompt: "Classify incident severity"
-   - Output: "high", "medium", or "low"
-
-2. **Category Analysis**
-   - Prompt: "Categorize incident type"
-   - Output: "performance", "database", "authentication", etc.
-
-3. **Root Cause Analysis**
-   - Prompt: "Analyze root cause with confidence"
-   - Output: Root cause description + probability score
-
-4. **Fallback Mechanism**
-   - If AI unavailable → Rule-based pattern matching
-   - Ensures system always provides analysis
-
-### Logging
-
-Detailed console logs track:
-- Which model is being used
-- API call attempts
-- Fallback triggers
-- Analysis results
-
----
-
-## 💾 Database Models
-
-### Incident Model
-
-```javascript
-{
-  title: String,
-  description: String,
-  serviceId: ObjectId (ref: Service),
-  serviceName: String,
-  severity: "low" | "medium" | "high",
-  category: "performance" | "database" | "authentication" | "network" | "deployment",
-  source: "system" | "engineer",
-  status: "open" | "investigating" | "resolved" | "auto-resolved",
-  aiAnalysis: {
-    rootCause: String,
-    rootCauseProbability: Number,
-    suggestedActions: Array,
-    relatedIncidentIds: Array
-  },
-  timeline: Array,
-  metadata: {
-    firstDetectedAt: Date,
-    lastUpdatedAt: Date,
-    logCount: Number,
-    errorCount: Number
-  }
-}
+### 4. AI Analysis Process
+```
+Engineer Requests AI Analysis
+      ↓
+POST /api/mcp/jsonrpc (analyzeIncident)
+      ↓
+MCP Tool Calls Backend Service
+      ↓
+Fetch Incident & Related Logs
+      ↓
+Call NVIDIA NIM API (Llama 3.1)
+      ↓
+If Primary Fails → Try Secondary (Mistral)
+      ↓
+If Both Fail → Rule-Based Fallback
+      ↓
+Generate Analysis Result
+      ↓
+Return to Frontend (Read-Only)
 ```
 
-### Service Model
-
-```javascript
-{
-  name: String,
-  url: String,
-  healthEndpoint: String (default: "/health"),
-  description: String,
-  category: "api" | "database" | "cache" | "queue" | "storage" | "monitoring" | "other",
-  enabled: Boolean,
-  metadata: {
-    tags: Array,
-    owner: String,
-    team: String,
-    environment: "production" | "staging" | "development"
-  }
-}
+### 5. Incident Lifecycle Management
+```
+Incident Detected
+      ↓
+Status: "open"
+      ↓
+Engineer Reviews
+      ↓
+Status: "investigating"
+      ↓
+AI Analysis Available
+      ↓
+Engineer Takes Action
+      ↓
+Status: "resolved"
+      ↓
+Incident Lifecycle Complete
 ```
 
-### Log Model
+## Architecture Overview
 
-```javascript
-{
-  incidentId: ObjectId (ref: Incident),
-  message: String,
-  level: "info" | "warning" | "error",
-  createdAt: Date
-}
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        EXPRESS SERVER                                       │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                        ROUTE HANDLERS                               │  │
+│  │                                                                     │  │
+│  │  /api/incidents  →  Incident Controller                             │  │
+│  │  /api/logs       →  Log Controller                                  │  │
+│  │  /api/services   →  Service Controller                              │  │
+│  │  /api/system     →  System Controller                               │  │
+│  │  /api/mcp        →  MCP JSON-RPC Tools                              │  │
+│  │  /health         →  Health Check                                      │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                        │                                                   │
+│                        │                                                   │
+│  ┌─────────────────────▼─────────────────────────────────────────────────┐  │
+│  │                      MIDDLEWARE LAYER                               │  │
+│  │  ┌─────────────────────────────────────────────────────────────────┐  │  │
+│  │  │  CORS Middleware (Cross-Origin)                               │  │  │
+│  │  │  Body Parser (JSON)                                           │  │  │
+│  │  │  Authentication (JWT - if needed)                             │  │  │
+│  │  └─────────────────────────────────────────────────────────────────┘  │  │
+│  └─────────────────────────────────────────────────────────────────────────┘  │
+│                        │                                                   │
+│                        │                                                   │
+│  ┌─────────────────────▼─────────────────────────────────────────────────┐  │
+│  │                     DATA LAYER                                      │  │
+│  │  ┌─────────────────────────────────────────────────────────────────┐  │  │
+│  │  │  Mongoose ODM                                                │  │  │
+│  │  │      │                                                         │  │  │
+│  │  │      ▼                                                         │  │  │
+│  │  │  MongoDB (Incidents, Logs, Services)                         │  │  │
+│  │  └─────────────────────────────────────────────────────────────────┘  │  │
+│  └─────────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                           │
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     EXTERNAL INTEGRATIONS                                 │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                        MONITORING SERVICE                           │  │
+│  │  ┌─────────────────────────────────────────────────────────────────┐  │  │
+│  │  │  Continuous Polling (Every 5 mins)                           │  │  │
+│  │  │  Health Check Requests to Registered Services                  │  │  │
+│  │  │  Failure Detection & Incident Creation                         │  │  │
+│  │  └─────────────────────────────────────────────────────────────────┘  │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                        │                                                   │
+│                        │                                                   │
+│  ┌─────────────────────▼─────────────────────────────────────────────────┐  │
+│  │                    AI INTEGRATION                                   │  │
+│  │  ┌─────────────────────────────────────────────────────────────────┐  │  │
+│  │  │  NVIDIA NIM API                                              │  │  │
+│  │  │  Llama 3.1 8B Instruct (Primary)                             │  │  │
+│  │  │  Mistral 7B Instruct (Secondary)                             │  │  │
+│  │  │  Rule-Based Fallback (Always Available)                      │  │  │
+│  │  └─────────────────────────────────────────────────────────────────┘  │  │
+│  └─────────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
----
+## Key Features
 
-## 🚀 Quick Start
+- **Automatic Incident Detection**: Monitors services continuously and creates incidents when failures are detected
+- **Intelligent Analysis**: Uses AI to determine incident severity, category, and root cause
+- **Multi-Endpoint Monitoring**: Checks multiple endpoints (/health, /api, /db, /auth) for comprehensive coverage
+- **Smart Incident Deduplication**: Prevents duplicate incidents for the same service failure
+- **Configurable Monitoring Intervals**: Adjustable check frequency based on service importance
+- **Robust Error Handling**: Comprehensive fallback mechanisms for all AI and external services
+- **RESTful API Design**: Standardized API endpoints for all operations
+- **MCP JSON-RPC Integration**: Standardized interface for AI tools and analysis
+- **Real-Time Logging**: Detailed logging of all system events and health checks
 
-### Prerequisites
-- Node.js 18+
-- MongoDB (local or Atlas)
-- NVIDIA NIM API key
+## API Endpoints
 
-### Installation
+- `GET /api/incidents` - Retrieve all incidents with filtering options
+- `GET /api/incidents/:id` - Get specific incident details
+- `PATCH /api/incidents/:id/status` - Update incident status
+- `GET /api/logs/:incidentId` - Get logs for a specific incident
+- `GET /api/services` - Get all registered services
+- `POST /api/services` - Register a new service for monitoring
+- `GET /api/system/stats` - Get system-wide statistics
+- `POST /api/mcp/jsonrpc` - MCP JSON-RPC interface for AI tools
+- `GET /health` - Server health check endpoint
 
-```bash
-npm install
-```
+## AI Analysis Capabilities
 
-### Configuration
+The backend provides sophisticated AI analysis through NVIDIA NIM integration:
 
-Create `.env` file:
+- **Severity Analysis**: Determines incident severity (high, medium, low)
+- **Category Classification**: Categorizes incidents (database, network, authentication, performance, deployment)
+- **Root Cause Identification**: Identifies likely root causes with probability scores
+- **Action Recommendations**: Suggests remediation actions with confidence levels
+- **Trend Analysis**: Detects if system conditions are degrading over time
+- **Related Incident Detection**: Finds similar past incidents for pattern recognition
 
-```bash
-PORT=5000
-MONGODB_URI=mongodb://localhost:27017/incident-management
-NIM_API_KEY=your-nvidia-nim-api-key
-NIM_BASE_URL=https://integrate.api.nvidia.com
-PRIMARY_MODEL=meta/llama-3.1-8b-instruct
-SECONDARY_MODEL=mistralai/mistral-7b-instruct
-```
+## Security & Reliability
 
-### Start Server
+- **Read-Only AI Operations**: All AI analysis is read-only, preventing accidental changes
+- **Human-in-the-Loop**: Critical actions require explicit human approval
+- **Database Validation**: All data inputs are validated before storage
+- **Error Recovery**: Automatic retry mechanisms and graceful degradation
+- **Authentication Ready**: JWT-based authentication framework (can be enabled)
 
-```bash
-# Development
-npm run dev
+## Monitoring & Observability
 
-# Production
-node src/server.js
-```
+- **Detailed Logging**: Comprehensive logging of all system operations
+- **Health Metrics**: Real-time health and performance metrics
+- **Error Tracking**: Automatic error detection and reporting
+- **Performance Monitoring**: Response time and throughput tracking
+- **Incident Timeline**: Complete audit trail of all incident events
 
-Server runs on `http://localhost:5000`
-
-### Start Monitoring Service
-
-Monitoring service starts automatically when server starts.
-
----
-
-## ⚙️ Configuration
-
-### Environment Variables
-
-- `PORT` - Server port (default: 5000)
-- `MONGODB_URI` - MongoDB connection string
-- `NIM_API_KEY` - NVIDIA NIM API key
-- `NIM_BASE_URL` - NVIDIA NIM base URL
-- `PRIMARY_MODEL` - Primary LLM model
-- `SECONDARY_MODEL` - Secondary LLM model
-- `MONITOR_DEMO_SERVER` - Enable demo server monitoring (default: true)
-- `ENABLE_RANDOM_EVENTS` - Enable random event simulation (default: true)
-
-### MongoDB Setup
-
-1. Install MongoDB locally or use MongoDB Atlas
-2. Update `MONGODB_URI` in `.env`
-3. Database and collections created automatically
-
----
-
-## 🔄 Monitoring Service
-
-### How It Works
-
-1. **Starts automatically** when backend starts
-2. **Fetches services** from database every cycle
-3. **Checks health** of each enabled service
-4. **Creates incidents** when issues detected
-5. **Updates existing incidents** with new logs
-6. **Auto-resolves** incidents when service recovers
-
-### Configuration
-
-- **Check Interval**: 1 minute (60000ms)
-- **Timeout**: 5 seconds per health check
-- **Auto-resolve**: After 30 minutes of no errors
-
----
-
-## 🎯 Key Features
-
-✅ **Multi-Service Support** - Monitor unlimited services  
-✅ **Automatic Detection** - Creates incidents automatically  
-✅ **AI-Powered Analysis** - NVIDIA NIM LLM integration  
-✅ **Intelligent Fallbacks** - Rule-based when AI unavailable  
-✅ **Service Management** - Full CRUD for services  
-✅ **Real-time Monitoring** - Continuous health checks  
-✅ **Incident Tracking** - Complete lifecycle management  
-✅ **Log Aggregation** - Centralized log storage  
-✅ **Timeline Tracking** - Full audit trail  
-
----
-
-**Built with Node.js, Express, MongoDB, and NVIDIA NIM for enterprise incident management** 🚀
+This backend system forms the backbone of the AI-powered incident management solution, providing reliable monitoring, intelligent analysis, and centralized management of system incidents.
